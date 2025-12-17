@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity */
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Swords, Crown, Shield } from "lucide-react";
@@ -15,7 +16,7 @@ const LoginScreen = () => {
   const handleLogin = () => {
     if (input.trim()) {
       setIsLoading(true);
-      soundManager.playSound('BUTTON_CLICK');
+      soundManager.playSound("BUTTON_CLICK");
       const trimmedUsername = input.trim();
       setUsername(trimmedUsername);
       sessionManager.initializeSession(trimmedUsername);
@@ -43,7 +44,7 @@ const LoginScreen = () => {
             style={{
               left: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * 20}s`,
-              animationDuration: `${15 + Math.random() * 10}s`
+              animationDuration: `${15 + Math.random() * 10}s`,
             }}
           />
         ))}
@@ -84,7 +85,7 @@ const LoginScreen = () => {
             onClick={handleLogin}
             disabled={isLoading || !input.trim()}
             className={`rpg-button w-full flex items-center justify-center gap-3 ${
-              isLoading || !input.trim() ? 'opacity-50 cursor-not-allowed' : ''
+              isLoading || !input.trim() ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
             {isLoading ? (

@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/purity */
 import { useNavigate } from "react-router";
 import { Trophy, Crown, Sparkles, Skull, Frown } from "lucide-react";
 import { useGame } from "../../contexts/GameContext";
@@ -23,12 +25,12 @@ const FinishedScreen = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!winner && !roomCode) {
-        console.log('⚠️ No winner in FinishedScreen, redirecting...');
+        console.log("⚠️ No winner in FinishedScreen, redirecting...");
         // Silent redirect, GameContext already handled it
-        navigate('/lobby', { replace: true });
+        navigate("/lobby", { replace: true });
       }
     }, 1000); // Longer delay to let GameContext redirect first
-    
+
     return () => clearTimeout(timer);
   }, [winner, roomCode, navigate]);
 
@@ -37,18 +39,18 @@ const FinishedScreen = () => {
   useEffect(() => {
     if (winner) {
       soundManager.stopBackgroundMusic();
-      
+
       if (isWinner) {
         // User won - play victory
         soundManager.initBackgroundMusic(MUSIC.VICTORY);
         soundManager.playBackgroundMusic();
-        soundManager.playSound('VICTORY');
+        soundManager.playSound("VICTORY");
       } else {
         // User lost - play defeat
-        soundManager.playSound('DEFEAT');
+        soundManager.playSound("DEFEAT");
       }
     }
-    
+
     return () => {
       soundManager.stopBackgroundMusic();
     };
@@ -61,7 +63,7 @@ const FinishedScreen = () => {
   });
 
   const playAgain = () => {
-    soundManager.playSound('BUTTON_CLICK');
+    soundManager.playSound("BUTTON_CLICK");
     soundManager.stopBackgroundMusic();
     setCurrentWordIndex(0);
     setTypedText("");
@@ -82,11 +84,13 @@ const FinishedScreen = () => {
               left: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * 5}s`,
               animationDuration: `${3 + Math.random() * 3}s`,
-              width: '6px',
-              height: '6px',
-              background: isWinner 
-                ? ['#ffd700', '#ffed4e', '#ffa500'][Math.floor(Math.random() * 3)]
-                : ['#666', '#888', '#555'][Math.floor(Math.random() * 3)]
+              width: "6px",
+              height: "6px",
+              background: isWinner
+                ? ["#ffd700", "#ffed4e", "#ffa500"][
+                    Math.floor(Math.random() * 3)
+                  ]
+                : ["#666", "#888", "#555"][Math.floor(Math.random() * 3)],
             }}
           />
         ))}
@@ -137,16 +141,20 @@ const FinishedScreen = () => {
           </div>
         )}
 
-        <div className={`rounded-2xl p-8 mb-8 border-4 ${
-          isWinner 
-            ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-600' 
-            : 'bg-gradient-to-br from-gray-100 to-gray-200 border-gray-600'
-        }`}>
-          <h3 className={`text-3xl font-bold rpg-title mb-6 flex items-center justify-center gap-3 ${
-            isWinner ? 'text-amber-900' : 'text-gray-800'
-          }`}>
+        <div
+          className={`rounded-2xl p-8 mb-8 border-4 ${
+            isWinner
+              ? "bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-600"
+              : "bg-gradient-to-br from-gray-100 to-gray-200 border-gray-600"
+          }`}
+        >
+          <h3
+            className={`text-3xl font-bold rpg-title mb-6 flex items-center justify-center gap-3 ${
+              isWinner ? "text-amber-900" : "text-gray-800"
+            }`}
+          >
             <Trophy className="w-8 h-8" />
-            {isWinner ? 'Hall of Heroes' : 'Battle Results'}
+            {isWinner ? "Hall of Heroes" : "Battle Results"}
             <Sparkles className="w-8 h-8" />
           </h3>
           <div className="space-y-4">
@@ -157,16 +165,18 @@ const FinishedScreen = () => {
               const colors = [
                 "from-yellow-400 to-orange-500",
                 "from-gray-300 to-gray-400",
-                "from-orange-400 to-orange-600"
+                "from-orange-400 to-orange-600",
               ];
 
               return (
                 <div
                   key={idx}
-                  className={`bg-gradient-to-r ${colors[idx] || "from-amber-100 to-amber-200"} rounded-xl p-5 flex items-center justify-between shadow-lg border-3 ${
-                    isCurrentPlayer 
-                      ? 'border-purple-600 ring-4 ring-purple-300' 
-                      : 'border-amber-700'
+                  className={`bg-gradient-to-r ${
+                    colors[idx] || "from-amber-100 to-amber-200"
+                  } rounded-xl p-5 flex items-center justify-between shadow-lg border-3 ${
+                    isCurrentPlayer
+                      ? "border-purple-600 ring-4 ring-purple-300"
+                      : "border-amber-700"
                   }`}
                 >
                   <div className="flex items-center gap-4">
@@ -180,7 +190,9 @@ const FinishedScreen = () => {
                         <span className="ml-2 text-sm text-amber-700">🤖</span>
                       )}
                       {player.character && (
-                        <span className="ml-2 text-2xl">{player.character.emoji}</span>
+                        <span className="ml-2 text-2xl">
+                          {player.character.emoji}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -197,11 +209,11 @@ const FinishedScreen = () => {
           onClick={playAgain}
           className={`w-full text-xl py-5 rounded-xl font-bold transition-all duration-200 ${
             isWinner
-              ? 'rpg-button'
-              : 'bg-gradient-to-r from-gray-600 to-gray-800 text-white hover:from-gray-700 hover:to-gray-900 hover:scale-105'
+              ? "rpg-button"
+              : "bg-gradient-to-r from-gray-600 to-gray-800 text-white hover:from-gray-700 hover:to-gray-900 hover:scale-105"
           }`}
         >
-          {isWinner ? '⚔️ QUEST AGAIN ⚔️' : '💪 TRAIN & RETRY 💪'}
+          {isWinner ? "⚔️ QUEST AGAIN ⚔️" : "💪 TRAIN & RETRY 💪"}
         </button>
       </div>
     </div>
