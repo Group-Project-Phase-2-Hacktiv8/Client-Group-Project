@@ -1,13 +1,21 @@
-import { Crown, Users, Bot, Trash2, Castle, Swords, LogOut, Shield } from "lucide-react";
+/* eslint-disable react-hooks/purity */
+import {
+  Crown,
+  Users,
+  Bot,
+  Trash2,
+  Castle,
+  Swords,
+  LogOut,
+  Shield,
+} from "lucide-react";
 import { useGame } from "../../contexts/GameContext";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
 import soundManager, { MUSIC } from "../../utils/soundManager";
 import { showRPGAlert } from "../ui/RPGAlert";
 import { RPGSpinner } from "../ui/RPGLoading";
 
 const WaitingRoom = () => {
-  const navigate = useNavigate();
   const {
     roomCode,
     players,
@@ -20,32 +28,39 @@ const WaitingRoom = () => {
     addBot,
     removeBot,
     leaveRoom,
+    isRejoining,
   } = useGame();
 
   const [showBotMenu, setShowBotMenu] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isAddingBot, setIsAddingBot] = useState(false);
 
-  // Redirect to lobby if no room code (connection lost after refresh)
-  useEffect(() => {
-    // Small delay to allow GameContext to handle refresh first
-    const timer = setTimeout(() => {
-      if (!roomCode) {
-        console.log('⚠️ No room code in WaitingRoom, redirecting...');
-        // Silent redirect, GameContext already showed message
-        navigate('/lobby', { replace: true });
-      }
-    }, 1000); // Longer delay to let GameContext redirect first
-    
-    return () => clearTimeout(timer);
-  }, [roomCode, navigate]);
+  // Check if we're loading (rejoining or no roomCode yet)
+  const isLoading =
+    isRejoining || (!roomCode && localStorage.getItem("roomCode"));
 
-  // Continue playing lobby music
+  // Continue playing lobby music - with user interaction fallback
   useEffect(() => {
-    soundManager.initBackgroundMusic(MUSIC.LOBBY);
-    soundManager.playBackgroundMusic();
-    
+    // Initialize and play music
+    const initMusic = () => {
+      soundManager.initBackgroundMusic(MUSIC.LOBBY);
+      soundManager.playBackgroundMusic();
+    };
+
+    initMusic();
+
+    // Handle browser autoplay policy - resume on any user interaction
+    const handleUserInteraction = () => {
+      soundManager.playBackgroundMusic();
+    };
+
+    // Add listeners for first user interaction
+    document.addEventListener("click", handleUserInteraction, { once: true });
+    document.addEventListener("keydown", handleUserInteraction, { once: true });
+
     return () => {
+      document.removeEventListener("click", handleUserInteraction);
+      document.removeEventListener("keydown", handleUserInteraction);
       soundManager.stopBackgroundMusic();
     };
   }, []);
@@ -53,18 +68,18 @@ const WaitingRoom = () => {
   // Close bot menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showBotMenu && !event.target.closest('.bot-menu-container')) {
+      if (showBotMenu && !event.target.closest(".bot-menu-container")) {
         setShowBotMenu(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showBotMenu]);
 
   const startGame = () => {
     setIsStarting(true);
-    soundManager.playSound('GAME_START');
+    soundManager.playSound("GAME_START");
     socketStartGame();
     // Reset after navigation (will unmount anyway)
     setTimeout(() => setIsStarting(false), 2000);
@@ -72,7 +87,7 @@ const WaitingRoom = () => {
 
   const handleAddBot = async (difficulty) => {
     setIsAddingBot(true);
-    soundManager.playSound('BUTTON_CLICK');
+    soundManager.playSound("BUTTON_CLICK");
     addBot(difficulty);
     setShowBotMenu(false);
     // Small delay for UX
@@ -80,11 +95,45 @@ const WaitingRoom = () => {
   };
 
   const handleLeaveRoom = () => {
-    showRPGAlert('⚠️ Are you sure you want to leave the guild?', 'warning', () => {
-      soundManager.playSound('BUTTON_CLICK');
-      leaveRoom();
-    });
+    showRPGAlert(
+      "⚠️ Are you sure you want to leave the guild?",
+      "warning",
+      () => {
+        soundManager.playSound("BUTTON_CLICK");
+        leaveRoom();
+      }
+    );
   };
+
+  // Show loading state while rejoining
+  if (isLoading) {
+    return (
+      <div className="min-h-screen rpg-background castle-bg flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="particles">
+          {[...Array(15)].map((_, i) => (
+            <div
+              key={i}
+              className="particle"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 20}s`,
+              }}
+            />
+          ))}
+        </div>
+        <div className="rpg-card p-8 md:p-12 max-w-md w-full relative z-10 text-center">
+          <Castle className="w-20 h-20 text-amber-700 mx-auto mb-4 animate-bounce" />
+          <h2 className="text-3xl font-bold rpg-title text-amber-900 mb-4">
+            🔄 Reconnecting to Guild...
+          </h2>
+          <RPGSpinner size="lg" />
+          <p className="text-amber-800 rpg-text text-lg mt-4">
+            Please wait while we restore your session
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen rpg-background castle-bg flex items-center justify-center p-4 relative overflow-hidden">
@@ -189,9 +238,11 @@ const WaitingRoom = () => {
             <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-6 border-4 border-amber-600 shadow-xl">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="w-6 h-6 text-amber-700" />
-                <h3 className="text-xl font-bold rpg-title text-amber-900">Guild Settings</h3>
+                <h3 className="text-xl font-bold rpg-title text-amber-900">
+                  Guild Settings
+                </h3>
               </div>
-              
+
               <label className="block text-base font-bold rpg-title text-amber-900 mb-3">
                 👥 Room Capacity
               </label>
@@ -200,7 +251,7 @@ const WaitingRoom = () => {
                   <button
                     key={num}
                     onClick={() => {
-                      soundManager.playSound('BUTTON_CLICK');
+                      soundManager.playSound("BUTTON_CLICK");
                       changeMaxPlayers(num);
                     }}
                     disabled={num < players.length}
@@ -216,64 +267,72 @@ const WaitingRoom = () => {
                   </button>
                 ))}
               </div>
-               {/* Bot Section */}
-            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 border-4 border-purple-600 shadow-xl">
-              <div className="flex items-center gap-2 mb-4">
-                <Bot className="w-6 h-6 text-purple-700" />
-                <h3 className="text-xl font-bold rpg-title text-purple-900">🤖 AI Warriors</h3>
-              </div>
-              <div className="relative bot-menu-container">
-                <button
-                  onClick={() => setShowBotMenu(!showBotMenu)}
-                  disabled={players.length >= maxPlayers || isAddingBot}
-                  className={`w-full py-4 rounded-xl font-bold rpg-title text-lg transition-all duration-200 border-3 flex items-center justify-center gap-2 ${
-                    players.length >= maxPlayers || isAddingBot
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed border-gray-400"
-                      : "bg-gradient-to-br from-purple-600 to-indigo-700 text-white hover:shadow-lg hover:scale-105 border-purple-800"
-                  }`}
-                >
-                  {isAddingBot ? (
-                    <>
-                      <RPGSpinner size="sm" />
-                      <span>Summoning...</span>
-                    </>
-                  ) : (
-                    "+ Add AI Warrior"
+              {/* Bot Section */}
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 border-4 border-purple-600 shadow-xl">
+                <div className="flex items-center gap-2 mb-4">
+                  <Bot className="w-6 h-6 text-purple-700" />
+                  <h3 className="text-xl font-bold rpg-title text-purple-900">
+                    🤖 AI Warriors
+                  </h3>
+                </div>
+                <div className="relative bot-menu-container">
+                  <button
+                    onClick={() => setShowBotMenu(!showBotMenu)}
+                    disabled={players.length >= maxPlayers || isAddingBot}
+                    className={`w-full py-4 rounded-xl font-bold rpg-title text-lg transition-all duration-200 border-3 flex items-center justify-center gap-2 ${
+                      players.length >= maxPlayers || isAddingBot
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed border-gray-400"
+                        : "bg-gradient-to-br from-purple-600 to-indigo-700 text-white hover:shadow-lg hover:scale-105 border-purple-800"
+                    }`}
+                  >
+                    {isAddingBot ? (
+                      <>
+                        <RPGSpinner size="sm" />
+                        <span>Summoning...</span>
+                      </>
+                    ) : (
+                      "+ Add AI Warrior"
+                    )}
+                  </button>
+                  {showBotMenu && players.length < maxPlayers && (
+                    <div className="absolute top-full mt-3 w-full bg-white rounded-xl shadow-2xl border-4 border-purple-600 z-50 max-h-80 overflow-y-auto">
+                      <button
+                        onClick={() => handleAddBot("easy")}
+                        className="w-full px-6 py-4 text-left hover:bg-green-100 transition-all border-b-2 border-gray-200 hover:scale-105 transform"
+                      >
+                        <div className="font-bold rpg-title text-lg text-green-700">
+                          🐢 Easy Warrior
+                        </div>
+                        <div className="text-sm text-gray-600 rpg-text">
+                          ~30 WPM - Beginner
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handleAddBot("medium")}
+                        className="w-full px-6 py-4 text-left hover:bg-yellow-100 transition-all border-b-2 border-gray-200 hover:scale-105 transform"
+                      >
+                        <div className="font-bold rpg-title text-lg text-yellow-700">
+                          🐎 Medium Warrior
+                        </div>
+                        <div className="text-sm text-gray-600 rpg-text">
+                          ~50 WPM - Skilled
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handleAddBot("hard")}
+                        className="w-full px-6 py-4 text-left hover:bg-red-100 transition-all hover:scale-105 transform"
+                      >
+                        <div className="font-bold rpg-title text-lg text-red-700">
+                          ⚡ Hard Warrior
+                        </div>
+                        <div className="text-sm text-gray-600 rpg-text">
+                          ~80 WPM - Master
+                        </div>
+                      </button>
+                    </div>
                   )}
-                </button>
-                {showBotMenu && players.length < maxPlayers && (
-                  <div className="absolute top-full mt-3 w-full bg-white rounded-xl shadow-2xl border-4 border-purple-600 z-50 max-h-80 overflow-y-auto">
-                    <button
-                      onClick={() => handleAddBot("easy")}
-                      className="w-full px-6 py-4 text-left hover:bg-green-100 transition-all border-b-2 border-gray-200 hover:scale-105 transform"
-                    >
-                      <div className="font-bold rpg-title text-lg text-green-700">
-                        🐢 Easy Warrior
-                      </div>
-                      <div className="text-sm text-gray-600 rpg-text">~30 WPM - Beginner</div>
-                    </button>
-                    <button
-                      onClick={() => handleAddBot("medium")}
-                      className="w-full px-6 py-4 text-left hover:bg-yellow-100 transition-all border-b-2 border-gray-200 hover:scale-105 transform"
-                    >
-                      <div className="font-bold rpg-title text-lg text-yellow-700">
-                        🐎 Medium Warrior
-                      </div>
-                      <div className="text-sm text-gray-600 rpg-text">~50 WPM - Skilled</div>
-                    </button>
-                    <button
-                      onClick={() => handleAddBot("hard")}
-                      className="w-full px-6 py-4 text-left hover:bg-red-100 transition-all hover:scale-105 transform"
-                    >
-                      <div className="font-bold rpg-title text-lg text-red-700">
-                        ⚡ Hard Warrior
-                      </div>
-                      <div className="text-sm text-gray-600 rpg-text">~80 WPM - Master</div>
-                    </button>
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
 
               <div className="sword-divider my-4"></div>
 
@@ -283,7 +342,7 @@ const WaitingRoom = () => {
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => {
-                    soundManager.playSound('BUTTON_CLICK');
+                    soundManager.playSound("BUTTON_CLICK");
                     changeLanguage("Indonesia");
                   }}
                   className={`py-4 rounded-xl font-bold rpg-title transition-all duration-200 border-3 ${
@@ -296,7 +355,7 @@ const WaitingRoom = () => {
                 </button>
                 <button
                   onClick={() => {
-                    soundManager.playSound('BUTTON_CLICK');
+                    soundManager.playSound("BUTTON_CLICK");
                     changeLanguage("Inggris");
                   }}
                   className={`py-4 rounded-xl font-bold rpg-title transition-all duration-200 border-3 ${

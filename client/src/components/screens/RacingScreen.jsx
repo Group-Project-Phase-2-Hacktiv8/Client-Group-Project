@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/purity */
 import RaceTrack from "../race/RaceTrack";
 import TypingArea from "../race/TypingArea";
 import { Swords, Flame } from "lucide-react";
@@ -16,7 +18,7 @@ const RacingScreen = () => {
   useEffect(() => {
     soundManager.initBackgroundMusic(MUSIC.RACING);
     soundManager.playBackgroundMusic();
-    
+
     return () => {
       soundManager.stopBackgroundMusic();
     };
@@ -26,12 +28,12 @@ const RacingScreen = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!gameText && !roomCode) {
-        console.log('⚠️ No game text in RacingScreen, redirecting...');
+        console.log("⚠️ No game text in RacingScreen, redirecting...");
         // Silent redirect, GameContext already handled it
-        navigate('/lobby', { replace: true });
+        navigate("/lobby", { replace: true });
       }
     }, 1000); // Longer delay to let GameContext redirect first
-    
+
     return () => clearTimeout(timer);
   }, [gameText, roomCode, navigate]);
 
@@ -55,7 +57,7 @@ const RacingScreen = () => {
             style={{
               left: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * 10}s`,
-              animationDuration: `${8 + Math.random() * 5}s`
+              animationDuration: `${8 + Math.random() * 5}s`,
             }}
           />
         ))}
@@ -72,7 +74,9 @@ const RacingScreen = () => {
             ⚔️ BATTLE ARENA ⚔️
           </h1>
           <div className="sword-divider"></div>
-          <p className="text-amber-800 rpg-text text-xl">Type Swift, Strike True!</p>
+          <p className="text-amber-800 rpg-text text-xl">
+            Type Swift, Strike True!
+          </p>
         </div>
 
         <RaceTrack />

@@ -5,7 +5,6 @@ import { useNavigate, useLocation } from "react-router";
 import { useSocket } from "../hooks/useSocket";
 import { showRPGAlert } from "../components/ui/RPGAlert";
 import { assignCharactersToPlayers } from "../utils/characters";
-import sessionManager from "../utils/sessionManager";
 
 const GameContext = createContext();
 
@@ -20,139 +19,71 @@ export const GameProvider = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Game State with localStorage persistence
-  const [gameState, setGameState] = useState(() => {
-    return localStorage.getItem('gameState') || "login";
-  });
-  const [username, setUsername] = useState(() => {
-    return localStorage.getItem('username') || "";
-  });
-  const [roomCode, setRoomCode] = useState(() => {
-    return localStorage.getItem('roomCode') || "";
-  });
-  const [players, setPlayers] = useState(() => {
-    const saved = localStorage.getItem('players');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [isRoomMaster, setIsRoomMaster] = useState(() => {
-    return localStorage.getItem('isRoomMaster') === 'true';
-  });
-  const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('language') || "Indonesia";
-  });
-  const [gameText, setGameText] = useState(() => {
-    return localStorage.getItem('gameText') || "";
-  });
+  // Game State with localStorage initialization
+  const [gameState, setGameState] = useState("login");
+  const [username, setUsername] = useState(
+    () => localStorage.getItem("username") || ""
+  );
+  const [roomCode, setRoomCode] = useState(
+    () => localStorage.getItem("roomCode") || ""
+  );
+  const [players, setPlayers] = useState([]);
+  const [isRoomMaster, setIsRoomMaster] = useState(
+    () => localStorage.getItem("isRoomMaster") === "true"
+  );
+  const [language, setLanguage] = useState("Indonesia");
+  const [gameText, setGameText] = useState("");
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [typedText, setTypedText] = useState("");
   const [progress, setProgress] = useState({});
   const [winner, setWinner] = useState(null);
-  const [maxPlayers, setMaxPlayers] = useState(() => {
-    const saved = localStorage.getItem('maxPlayers');
-    return saved ? parseInt(saved) : 3;
-  });
+  const [maxPlayers, setMaxPlayers] = useState(3);
   const [bots, setBots] = useState([]);
+  const [isRejoining, setIsRejoining] = useState(false);
+  const [hasAttemptedRejoin, setHasAttemptedRejoin] = useState(false);
 
-  // Save state to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('gameState', gameState);
-  }, [gameState]);
-
-  useEffect(() => {
-    if (username) localStorage.setItem('username', username);
-  }, [username]);
-
-  useEffect(() => {
-    if (roomCode) localStorage.setItem('roomCode', roomCode);
-    else localStorage.removeItem('roomCode');
-  }, [roomCode]);
-
-  useEffect(() => {
-    if (players.length > 0) localStorage.setItem('players', JSON.stringify(players));
-  }, [players]);
-
-  useEffect(() => {
-    localStorage.setItem('isRoomMaster', isRoomMaster.toString());
-  }, [isRoomMaster]);
-
-  useEffect(() => {
-    localStorage.setItem('language', language);
-  }, [language]);
-
-  useEffect(() => {
-    if (gameText) localStorage.setItem('gameText', gameText);
-  }, [gameText]);
-
-  useEffect(() => {
-    localStorage.setItem('maxPlayers', maxPlayers.toString());
-  }, [maxPlayers]);
-
-  // Handle page refresh - redirect to appropriate page
-  useEffect(() => {
-    const currentPath = location.pathname;
-    
-    // Check if user should be redirected to lobby
-    if (sessionManager.shouldRedirectToLobby(currentPath)) {
-      console.log('🔄 Redirecting to lobby from:', currentPath);
-      
-      // Clear room-related data
-      sessionManager.clearRoomSession();
-      
-      // Clear state
-      setRoomCode('');
-      setPlayers([]);
-      setIsRoomMaster(false);
-      setGameText('');
-      setWinner(null);
-      setProgress({});
-      
-      // Redirect immediately without alert for smooth UX
-      navigate('/lobby', { replace: true });
-    } else {
-      // Update activity if on valid page
-      sessionManager.updateActivity();
-    }
-  }, []);  // Run only once on mount
-  
-  // Update activity on user interaction
-  useEffect(() => {
-    const handleActivity = () => {
-      sessionManager.updateActivity();
-    };
-    
-    window.addEventListener('click', handleActivity);
-    window.addEventListener('keypress', handleActivity);
-    
-    return () => {
-      window.removeEventListener('click', handleActivity);
-      window.removeEventListener('keypress', handleActivity);
-    };
-  }, []);
-
-  // Socket Event Listeners
+  // Socket Event Listeners AND Auto-rejoin logic combined
   useEffect(() => {
     if (!socket) return;
 
     // Room created
-    socket.on("room_created", ({ roomCode, isRoomMaster, players, maxPlayers: max }) => {
-      setRoomCode(roomCode);
-      setIsRoomMaster(isRoomMaster);
-      setPlayers(assignCharactersToPlayers(players));
-      setMaxPlayers(max || 3);
-      if (location.pathname !== "/waiting") {
-        navigate("/waiting");
+    socket.on(
+      "room_created",
+      ({ roomCode, isRoomMaster, players, maxPlayers: max }) => {
+        setRoomCode(roomCode);
+        setIsRoomMaster(isRoomMaster);
+        setPlayers(assignCharactersToPlayers(players));
+        setMaxPlayers(max || 3);
+        // Save to localStorage
+        localStorage.setItem("roomCode", roomCode);
+        localStorage.setItem("isRoomMaster", isRoomMaster);
+        if (location.pathname !== "/waiting") {
+          navigate("/waiting");
+        }
       }
-    });
+    );
 
     // Room joined
     socket.on(
       "room_joined",
       ({ roomCode, isRoomMaster, players, language, maxPlayers: max }) => {
+        console.log("📥 room_joined received:", {
+          roomCode,
+          isRoomMaster,
+          players,
+          language,
+          maxPlayers: max,
+        });
         setRoomCode(roomCode);
         setIsRoomMaster(isRoomMaster);
         setPlayers(assignCharactersToPlayers(players));
         setLanguage(language);
         setMaxPlayers(max || 3);
+        setIsRejoining(false);
+        setHasAttemptedRejoin(true);
+        // Save to localStorage
+        localStorage.setItem("roomCode", roomCode);
+        localStorage.setItem("isRoomMaster", isRoomMaster.toString());
         if (location.pathname !== "/waiting") {
           navigate("/waiting");
         }
@@ -184,20 +115,20 @@ export const GameProvider = ({ children }) => {
     // Bot added
     socket.on("bot_added", ({ bot, players }) => {
       setPlayers(assignCharactersToPlayers(players));
-      setBots(prev => [...prev, bot]);
+      setBots((prev) => [...prev, bot]);
     });
 
     // Bot removed
     socket.on("bot_removed", ({ botId, players }) => {
       setPlayers(assignCharactersToPlayers(players));
-      setBots(prev => prev.filter(b => b.id !== botId));
+      setBots((prev) => prev.filter((b) => b.id !== botId));
     });
 
     // New master assigned
     socket.on("new_master_assigned", ({ newMasterId, newMasterName }) => {
       if (socket.id === newMasterId) {
         setIsRoomMaster(true);
-        showRPGAlert(`👑 You are now the Guild Master!`, 'success');
+        showRPGAlert(`👑 You are now the Guild Master!`, "success");
       }
       console.log(`${newMasterName} is now the room master`);
     });
@@ -232,38 +163,56 @@ export const GameProvider = ({ children }) => {
       }
     });
 
+    // Rejoin failed
+    socket.on("rejoin_failed", ({ message }) => {
+      console.log("❌ Rejoin failed:", message);
+      setIsRejoining(false);
+      setHasAttemptedRejoin(false);
+      // Clear localStorage
+      localStorage.removeItem("roomCode");
+      localStorage.removeItem("isRoomMaster");
+      // Redirect to lobby
+      showRPGAlert(
+        message || "Room no longer exists. Please create or join a new room.",
+        "warning"
+      );
+      navigate("/lobby");
+    });
+
     // Error handling
     socket.on("error", ({ message }) => {
-      // Check if this is an authorization/room error (likely from refresh)
-      const isAuthError = message.toLowerCase().includes('not authorized') || 
-                         message.toLowerCase().includes('room not found') ||
-                         message.toLowerCase().includes('invalid');
-      
-      if (isAuthError) {
-        console.log('❌ Authorization error, redirecting silently...');
-        
-        // Clear room state
-        sessionManager.clearRoomSession();
-        
-        setRoomCode('');
-        setPlayers([]);
-        setIsRoomMaster(false);
-        setGameText('');
-        
-        // Silent redirect without alert
-        setTimeout(() => {
-          navigate('/lobby', { replace: true });
-        }, 500);
-      } else {
-        // Show alert only for non-auth errors
-        showRPGAlert(message, 'error');
-      }
+      showRPGAlert(message, "error");
+      setIsRejoining(false);
     });
 
     // Left room successfully
     socket.on("left_room_success", () => {
+      // Clear localStorage
+      localStorage.removeItem("roomCode");
+      localStorage.removeItem("isRoomMaster");
       navigate("/lobby");
     });
+
+    // Auto-rejoin on refresh - AFTER all listeners are set up
+    const savedRoomCode = localStorage.getItem("roomCode");
+    const savedUsername = localStorage.getItem("username");
+
+    if (
+      savedRoomCode &&
+      savedUsername &&
+      !hasAttemptedRejoin &&
+      (location.pathname === "/waiting" ||
+        location.pathname === "/racing" ||
+        location.pathname === "/finished")
+    ) {
+      setHasAttemptedRejoin(true);
+      setIsRejoining(true);
+      console.log("🔄 Attempting to rejoin room:", savedRoomCode);
+      socket.emit("rejoin_room", {
+        username: savedUsername,
+        roomCode: savedRoomCode,
+      });
+    }
 
     return () => {
       socket.off("room_created");
@@ -280,68 +229,71 @@ export const GameProvider = ({ children }) => {
       socket.off("player_finished");
       socket.off("error");
       socket.off("left_room_success");
+      socket.off("rejoin_failed");
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, winner, navigate, location]);
 
-  // Socket Actions with null checks
-  const createRoom = (roomCode) => {
-    if (!socket) {
-      console.warn('Socket not connected yet');
-      return;
+  // Save username to localStorage when it changes
+  useEffect(() => {
+    if (username) {
+      localStorage.setItem("username", username);
     }
-    sessionManager.startRoomSession(roomCode);
-    socket.emit("create_room", { username, roomCode });
+  }, [username]);
+
+  // Socket Actions
+  const createRoom = (roomCode) => {
+    socket?.emit("create_room", { username, roomCode });
   };
 
   const joinRoom = (roomCode) => {
-    if (!socket) {
-      console.warn('Socket not connected yet');
-      return;
-    }
-    sessionManager.startRoomSession(roomCode);
-    socket.emit("join_room", { username, roomCode });
+    socket?.emit("join_room", { username, roomCode });
   };
 
   const changeLanguage = (newLanguage) => {
-    if (!socket) return;
-    socket.emit("change_language", { roomCode, language: newLanguage });
+    socket?.emit("change_language", { roomCode, language: newLanguage });
   };
 
   const startGame = () => {
-    if (!socket) return;
-    socket.emit("start_game", { roomCode });
+    socket?.emit("start_game", { roomCode });
   };
 
   const updateProgress = (newProgress) => {
-    if (!socket) return;
-    socket.emit("update_progress", { roomCode, progress: newProgress });
+    socket?.emit("update_progress", { roomCode, progress: newProgress });
   };
 
   const finishGame = () => {
-    if (!socket) return;
-    socket.emit("player_finished", { roomCode });
+    socket?.emit("player_finished", { roomCode });
   };
 
   const changeMaxPlayers = (newMaxPlayers) => {
-    if (!socket) return;
-    socket.emit("change_max_players", { roomCode, maxPlayers: newMaxPlayers });
+    socket?.emit("change_max_players", { roomCode, maxPlayers: newMaxPlayers });
   };
 
   const addBot = (difficulty) => {
-    if (!socket) return;
-    socket.emit("add_bot", { roomCode, difficulty });
+    socket?.emit("add_bot", { roomCode, difficulty });
   };
 
   const removeBot = (botId) => {
-    if (!socket) return;
-    socket.emit("remove_bot", { roomCode, botId });
+    socket?.emit("remove_bot", { roomCode, botId });
   };
 
   const leaveRoom = () => {
-    if (!socket) return;
-    socket.emit("leave_room", { roomCode });
-    // Clear session on leave
-    sessionManager.clearRoomSession();
+    // Use roomCode from state or localStorage as fallback
+    const currentRoomCode = roomCode || localStorage.getItem("roomCode");
+    if (currentRoomCode) {
+      socket?.emit("leave_room", { roomCode: currentRoomCode });
+    }
+    // Clear local state immediately
+    setRoomCode("");
+    setPlayers([]);
+    setIsRoomMaster(false);
+    setIsRejoining(false);
+    setHasAttemptedRejoin(false);
+    localStorage.removeItem("roomCode");
+    localStorage.removeItem("isRoomMaster");
+    // Navigate to lobby
+    navigate("/lobby");
   };
 
   const value = {
@@ -372,6 +324,7 @@ export const GameProvider = ({ children }) => {
     setMaxPlayers,
     bots,
     setBots,
+    isRejoining,
     // Actions
     createRoom,
     joinRoom,
